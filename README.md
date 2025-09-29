@@ -81,6 +81,25 @@ And some additional, less used options:
 | `defaultImageHandler` | `http://` | `false` | Will be prepended to an image url if it does not start with something in the `allowedImageHandlers` array, if this is set to null, it won't try to recover but will just not render anything instead.
 
 
+## Horizontal scroll para tablas anchas
+
+Puedes habilitar un scroll horizontal opcional para tablas con muchas columnas. Define una tabla con al menos siete columnas y activa la opción con un ancho mínimo por columna:
+
+```tsx
+const md = `
+| Col 1 | Col 2 | Col 3 | Col 4 | Col 5 | Col 6 | Col 7 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | 2 | 3 | 4 | 5 | 6 | 7 |
+`;
+
+<Markdown enableTableHorizontalScroll tableMinColumnWidth={120}>
+  {md}
+</Markdown>;
+```
+
+La heurística calcula el número de columnas detectado (o usa un valor seguro si no puede determinarlo) y lo compara con `tableMinColumnWidth` y el ancho de la pantalla para decidir si se necesita scroll. Cuando la bandera está activa, las reglas personalizadas del usuario se mantienen y se combinan con una regla `table` que envuelve el contenido en un `ScrollView` horizontal cuando es necesario.
+
+
 # Syntax Support
 
 <details><summary>Headings</summary>

@@ -89,6 +89,8 @@ export interface MarkdownProps {
   mergeStyle?: boolean;
   debugPrintTree?: boolean;
   onLinkPress?: (url: string) => boolean;
+  enableTableHorizontalScroll?: boolean;
+  tableMinColumnWidth?: number;
 }
 
 type MarkdownStatic = ComponentType<PropsWithChildren<MarkdownProps>>;

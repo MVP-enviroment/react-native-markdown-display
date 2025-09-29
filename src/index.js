@@ -3,8 +3,15 @@
  * @author Mient-jan Stelling + contributors
  */
 
-import React, {useMemo} from 'react';
-import {Text, StyleSheet} from 'react-native';
+import React, {useCallback, useMemo} from 'react';
+import {
+  Text,
+  StyleSheet,
+  View,
+  ScrollView,
+  useWindowDimensions,
+  Platform,
+} from 'react-native';
 import PropTypes from 'prop-types';
 import parser from './lib/parser';
 import getUniqueID from './lib/util/getUniqueID';
@@ -133,7 +140,7 @@ const Markdown = React.memo(
   ({
     children,
     renderer = null,
-    rules = null,
+    rules: userRules = null,
     style = null,
     mergeStyle = true,
     markdownit = MarkdownIt({
@@ -151,12 +158,87 @@ const Markdown = React.memo(
     ],
     defaultImageHandler = 'https://',
     debugPrintTree = false,
+    enableTableHorizontalScroll = false,
+    tableMinColumnWidth = 120,
   }) => {
+    const {width: screenWidth} = useWindowDimensions();
+
+    const tableRule = useCallback(
+      (node, children, parentNodes, styles) => {
+        let colCount = 0;
+
+        if (node && Array.isArray(node.children)) {
+          const firstSection = node.children.find((child) =>
+            child &&
+            child.type &&
+            (child.type === 'thead' ||
+              child.type === 'tbody' ||
+              child.type === 'tr'),
+          );
+
+          let targetRow = null;
+
+          if (firstSection) {
+            if (firstSection.type === 'tr') {
+              targetRow = firstSection;
+            } else if (Array.isArray(firstSection.children)) {
+              targetRow = firstSection.children.find(
+                (child) => child && child.type === 'tr',
+              );
+            }
+          }
+
+          if (targetRow && Array.isArray(targetRow.children)) {
+            colCount = targetRow.children.length;
+          }
+        }
+
+        const needsScroll =
+          enableTableHorizontalScroll &&
+          (colCount === 0 || colCount * tableMinColumnWidth > screenWidth);
+
+        if (!needsScroll) {
+          return (
+            <View key={node.key} style={styles._VIEW_SAFE_table}>
+              {children}
+            </View>
+          );
+        }
+
+        return (
+          <ScrollView
+            key={node.key}
+            horizontal
+            accessibilityRole="scrollbar"
+            nestedScrollEnabled={Platform.OS === 'android'}
+          >
+            <View style={styles._VIEW_SAFE_table}>{children}</View>
+          </ScrollView>
+        );
+      },
+      [
+        enableTableHorizontalScroll,
+        screenWidth,
+        tableMinColumnWidth,
+      ],
+    );
+
+    const mergedRules = useMemo(() => {
+      if (!enableTableHorizontalScroll || renderer) {
+        return userRules;
+      }
+
+      return {
+        ...(userRules ?? {}),
+        table: tableRule,
+      };
+    }, [enableTableHorizontalScroll, renderer, tableRule, userRules]);
+
     const momoizedRenderer = useMemo(
       () =>
         getRenderer(
           renderer,
-          rules,
+          mergedRules,
           style,
           mergeStyle,
           onLinkPress,
@@ -170,7 +252,7 @@ const Markdown = React.memo(
         maxTopLevelChildren,
         onLinkPress,
         renderer,
-        rules,
+        mergedRules,
         style,
         mergeStyle,
         topLevelMaxExceededItem,
@@ -226,6 +308,8 @@ Markdown.propTypes = {
   allowedImageHandlers: PropTypes.arrayOf(PropTypes.string),
   defaultImageHandler: PropTypes.string,
   debugPrintTree: PropTypes.bool,
+  enableTableHorizontalScroll: PropTypes.bool,
+  tableMinColumnWidth: PropTypes.number,
 };
 
 export default Markdown;
